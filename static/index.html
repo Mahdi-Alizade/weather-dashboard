@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Weather Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div class="background-blobs">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+  </div>
+
+  <div class="app-container">
+    <!-- Header -->
+    <header class="header">
+      <div class="brand">
+        <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" />
+        </svg>
+        <span class="brand-name">WeatherPulse</span>
+      </div>
+
+      <div class="header-actions">
+        <button id="theme-toggle" class="btn-icon" aria-label="Toggle Theme">
+          <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="4"></circle>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path>
+          </svg>
+          <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Search Section -->
+    <section class="search-section">
+      <form id="search-form" class="search-box">
+        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input type="text" id="city-input" placeholder="Search city (e.g. London, Tokyo, New York)..." autocomplete="off" required />
+        <button type="submit" class="btn-primary">Search</button>
+      </form>
+      <button id="geo-btn" class="btn-icon-labeled" title="Use current location">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="3 11 22 2 13 21 11 13 3 11"></polygon>
+        </svg>
+        <span>Current Location</span>
+      </button>
+    </section>
+
+    <!-- Feedback Message / Alert -->
+    <div id="error-message" class="error-message hidden" role="alert"></div>
+
+    <!-- Loading Skeleton -->
+    <div id="loading-spinner" class="loading-container hidden">
+      <div class="spinner"></div>
+      <p>Fetching weather data...</p>
+    </div>
+
+    <!-- Weather Content -->
+    <main id="weather-content" class="weather-content hidden">
+      <!-- Current Weather Hero Card -->
+      <div class="card current-weather-card">
+        <div class="current-header">
+          <div>
+            <h1 id="city-name" class="city-name">--</h1>
+            <p id="current-date" class="date-text">--</p>
+          </div>
+          <span id="weather-badge" class="weather-badge">--</span>
+        </div>
+
+        <div class="current-main">
+          <div class="temp-wrapper">
+            <span id="current-temp" class="temp-display">--</span>
+            <span class="temp-unit">°C</span>
+          </div>
+          <div class="weather-visual">
+            <img id="current-icon" src="" alt="Weather condition icon" />
+            <p id="current-condition" class="condition-text">--</p>
+          </div>
+        </div>
+
+        <!-- Metrics Grid -->
+        <div class="metrics-grid">
+          <div class="metric-item">
+            <span class="metric-label">Feels Like</span>
+            <span id="metric-feels" class="metric-value">--°C</span>
+          </div>
+          <div class="metric-item">
+            <span class="metric-label">Humidity</span>
+            <span id="metric-humidity" class="metric-value">--%</span>
+          </div>
+          <div class="metric-item">
+            <span class="metric-label">Wind Speed</span>
+            <span id="metric-wind" class="metric-value">-- km/h</span>
+          </div>
+          <div class="metric-item">
+            <span class="metric-label">Pressure</span>
+            <span id="metric-pressure" class="metric-value">-- hPa</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3-Day Forecast Section -->
+      <section class="forecast-section">
+        <h2 class="section-title">3-Day Forecast</h2>
+        <div id="forecast-grid" class="forecast-grid">
+          <!-- Cards populated via JS -->
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
