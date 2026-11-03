@@ -59,7 +59,7 @@
     <!-- Feedback Message / Alert -->
     <div id="error-message" class="error-message hidden" role="alert"></div>
 
-    <!-- Loading Skeleton -->
+    <!-- Loading Spinner -->
     <div id="loading-spinner" class="loading-container hidden">
       <div class="spinner"></div>
       <p>Fetching weather data...</p>
@@ -108,6 +108,16 @@
           </div>
         </div>
       </div>
+
+      <!-- 24-Hour Forecast Section -->
+      <section class="hourly-section">
+        <div class="section-header">
+          <h2 class="section-title">Hourly Forecast (Next 24h)</h2>
+        </div>
+        <div id="hourly-track" class="hourly-track">
+          <!-- Populated dynamically via JS -->
+        </div>
+      </section>
 
       <!-- 3-Day Forecast Section -->
       <section class="forecast-section">
