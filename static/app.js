@@ -29,6 +29,15 @@ const metricHumidityEl = document.getElementById("metric-humidity");
 const metricWindEl = document.getElementById("metric-wind");
 const metricPressureEl = document.getElementById("metric-pressure");
 
+// Air Quality Elements
+const aqiSectionEl = document.getElementById("aqi-section");
+const aqiBadgeEl = document.getElementById("aqi-badge");
+const aqiAdvisoryEl = document.getElementById("aqi-advisory");
+const aqiPm25El = document.getElementById("aqi-pm25");
+const aqiPm10El = document.getElementById("aqi-pm10");
+const aqiNo2El = document.getElementById("aqi-no2");
+const aqiO3El = document.getElementById("aqi-o3");
+
 // Forecast Containers
 const hourlyTrackEl = document.getElementById("hourly-track");
 const forecastGridEl = document.getElementById("forecast-grid");
@@ -104,7 +113,7 @@ function toggleFavoriteCity() {
     currentList.splice(existingIndex, 1);
     favoriteBtn.classList.remove("active");
   } else {
-    // Add to favorites (keep maximum 6 pinned cities)
+    // Add to favorites (maximum 6 pinned cities)
     if (currentList.length >= 6) {
       currentList.shift();
     }
@@ -238,6 +247,7 @@ function renderWeather(data) {
   const current = data.current;
   const forecast = data.forecast;
   const hourly = data.hourly || [];
+  const airQuality = data.air_quality || {};
 
   if (!current) {
     showError("Incomplete data received from server.");
@@ -281,10 +291,36 @@ function renderWeather(data) {
   metricPressureEl.textContent = `${current.main.pressure} hPa`;
 
   // Render Subsections
+  renderAirQuality(airQuality);
   renderHourlyForecast(hourly);
   renderForecast(forecast);
 
   weatherContent.classList.remove("hidden");
+}
+
+// Render Air Quality Index
+function renderAirQuality(airQuality) {
+  if (!airQuality || !airQuality.aqi) {
+    aqiSectionEl.classList.add("hidden");
+    return;
+  }
+
+  aqiSectionEl.classList.remove("hidden");
+
+  const aqiVal = airQuality.aqi;
+  const statusLabel = airQuality.status || "Moderate";
+  const badgeColor = airQuality.color || "#10b981";
+  const advisoryText = airQuality.advisory || "";
+
+  aqiBadgeEl.textContent = `AQI ${aqiVal} • ${statusLabel}`;
+  aqiBadgeEl.style.color = badgeColor;
+  aqiBadgeEl.style.borderColor = badgeColor;
+  aqiAdvisoryEl.textContent = advisoryText;
+
+  aqiPm25El.textContent = `${airQuality.pm2_5 || 0} µg/m³`;
+  aqiPm10El.textContent = `${airQuality.pm10 || 0} µg/m³`;
+  aqiNo2El.textContent = `${airQuality.no2 || 0} µg/m³`;
+  aqiO3El.textContent = `${airQuality.o3 || 0} µg/m³`;
 }
 
 // Render 24-Hour Forecast Track
