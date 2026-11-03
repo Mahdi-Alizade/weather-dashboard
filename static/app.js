@@ -22,6 +22,9 @@ const metricFeelsEl = document.getElementById("metric-feels");
 const metricHumidityEl = document.getElementById("metric-humidity");
 const metricWindEl = document.getElementById("metric-wind");
 const metricPressureEl = document.getElementById("metric-pressure");
+
+// Forecast Containers
+const hourlyTrackEl = document.getElementById("hourly-track");
 const forecastGridEl = document.getElementById("forecast-grid");
 
 // Initialize Application
@@ -33,7 +36,7 @@ document.addEventListener("DOMContentLoaded", () => {
   fetchWeatherData({ city: savedCity });
 });
 
-// Theme Toggle Handling
+// Theme Management
 function initTheme() {
   const savedTheme = localStorage.getItem(STORAGE_KEY_THEME) || "dark";
   document.documentElement.setAttribute("data-theme", savedTheme);
@@ -46,7 +49,7 @@ function toggleTheme() {
   localStorage.setItem(STORAGE_KEY_THEME, newTheme);
 }
 
-// Event Listeners
+// Event Listeners Setup
 function setupEventListeners() {
   themeToggleBtn.addEventListener("click", toggleTheme);
 
@@ -54,7 +57,7 @@ function setupEventListeners() {
     e.preventDefault();
     const city = cityInput.value.trim();
     if (city) {
-      fetchWeatherData({ city });
+      fetchWeatherData({ city: city });
     }
   });
 
@@ -67,9 +70,11 @@ function setupEventListeners() {
     showLoading();
     navigator.geolocation.getCurrentPosition(
       (pos) => {
+        const latitude = pos.coords.latitude;
+        const longitude = pos.coords.longitude;
         fetchWeatherData({
-          lat: pos.coords.latitude,
-          lon: pos.coords.longitude
+          lat: latitude,
+          lon: longitude
         });
       },
       (err) => {
@@ -81,7 +86,7 @@ function setupEventListeners() {
   });
 }
 
-// Fetch Data from Backend API
+// Fetch Weather Data from Backend API
 async function fetchWeatherData(params) {
   showLoading();
   hideError();
@@ -92,10 +97,12 @@ async function fetchWeatherData(params) {
     const data = await response.json();
 
     if (!response.ok) {
-      throw new Error(data.detail || "An error occurred while fetching weather data.");
+      const serverError = data.detail || "An error occurred while fetching weather data.";
+      throw new Error(serverError);
     }
 
     renderWeather(data);
+
     if (params.city) {
       localStorage.setItem(STORAGE_KEY_LAST_CITY, params.city);
     } else if (data.current && data.current.name) {
@@ -108,41 +115,86 @@ async function fetchWeatherData(params) {
   }
 }
 
-// Render Weather Information
+// Render Main Weather View
 function renderWeather(data) {
-  const { current, forecast } = data;
+  const current = data.current;
+  const forecast = data.forecast;
+  const hourly = data.hourly || [];
 
   if (!current) {
     showError("Incomplete data received from server.");
     return;
   }
 
-  // Populate Current Weather
-  cityNameEl.textContent = `${current.name}, ${current.sys?.country || ""}`;
+  // Populate Current Weather Card
+  const countryCode = current.sys && current.sys.country ? current.sys.country : "";
+  cityNameEl.textContent = `${current.name}, ${countryCode}`;
   currentDateEl.textContent = formatDate(new Date());
-  
-  const mainCondition = current.weather?.[0]?.main || "Clear";
+
+  const weatherArray = current.weather || [];
+  const primaryWeather = weatherArray[0] || {};
+  const mainCondition = primaryWeather.main || "Clear";
   weatherBadgeEl.textContent = mainCondition;
 
-  currentTempEl.textContent = Math.round(current.main.temp);
-  currentConditionEl.textContent = current.weather?.[0]?.description || "";
-  
-  const iconCode = current.weather?.[0]?.icon || "01d";
+  const currentTemp = Math.round(current.main.temp);
+  currentTempEl.textContent = currentTemp;
+  currentConditionEl.textContent = primaryWeather.description || "";
+
+  const iconCode = primaryWeather.icon || "01d";
   currentIconEl.src = `https://openweathermap.org/img/wn/${iconCode}@2x.png`;
   currentIconEl.alt = mainCondition;
 
-  metricFeelsEl.textContent = `${Math.round(current.main.feels_like)}°C`;
+  const feelsLikeTemp = Math.round(current.main.feels_like);
+  metricFeelsEl.textContent = `${feelsLikeTemp}°C`;
   metricHumidityEl.textContent = `${current.main.humidity}%`;
-  metricWindEl.textContent = `${Math.round((current.wind?.speed || 0) * 3.6)} km/h`; // convert m/s to km/h
+
+  const windSpeedKmH = Math.round((current.wind?.speed || 0) * 3.6);
+  metricWindEl.textContent = `${windSpeedKmH} km/h`;
   metricPressureEl.textContent = `${current.main.pressure} hPa`;
 
-  // Process & Render 3-Day Forecast
+  // Render Subsections
+  renderHourlyForecast(hourly);
   renderForecast(forecast);
 
   weatherContent.classList.remove("hidden");
 }
 
-// Extract next 3 distinct days from 3-hour interval data
+// Render 24-Hour Forecast Track
+function renderHourlyForecast(hourlyList) {
+  hourlyTrackEl.innerHTML = "";
+
+  if (!hourlyList || hourlyList.length === 0) {
+    return;
+  }
+
+  for (let i = 0; i < hourlyList.length; i++) {
+    const item = hourlyList[i];
+    const timeLabel = item.hour || "--:--";
+    const tempValue = item.temp;
+    const iconCode = item.icon || "01d";
+    const conditionText = item.condition || "";
+    const popPercent = item.pop || 0;
+
+    const card = document.createElement("div");
+    card.className = "hourly-card";
+
+    let popHtml = "";
+    if (popPercent > 0) {
+      popHtml = `<span class="hourly-pop">💧 ${popPercent}%</span>`;
+    }
+
+    card.innerHTML = `
+      <span class="hourly-time">${timeLabel}</span>
+      <img src="https://openweathermap.org/img/wn/${iconCode}.png" alt="${conditionText}" />
+      <span class="hourly-temp">${tempValue}°C</span>
+      ${popHtml}
+    `;
+
+    hourlyTrackEl.appendChild(card);
+  }
+}
+
+// Render 3-Day Daily Forecast
 function renderForecast(forecastData) {
   forecastGridEl.innerHTML = "";
 
@@ -154,11 +206,14 @@ function renderForecast(forecastData) {
   const processedDates = new Set();
   const todayStr = new Date().toISOString().split("T")[0];
 
-  for (const entry of forecastData.list) {
-    const entryDate = entry.dt_txt.split(" ")[0];
-    const entryTime = entry.dt_txt.split(" ")[1];
+  const listItems = forecastData.list;
 
-    // Pick midday data (~12:00:00) for future days
+  for (let i = 0; i < listItems.length; i++) {
+    const entry = listItems[i];
+    const dtTxt = entry.dt_txt || "";
+    const entryDate = dtTxt.split(" ")[0];
+    const entryTime = dtTxt.split(" ")[1] || "";
+
     if (entryDate !== todayStr && !processedDates.has(entryDate)) {
       if (entryTime.startsWith("12") || entryTime.startsWith("15")) {
         dailyForecasts.push(entry);
@@ -166,22 +221,31 @@ function renderForecast(forecastData) {
       }
     }
 
-    if (dailyForecasts.length === 3) break;
+    if (dailyForecasts.length === 3) {
+      break;
+    }
   }
 
-  // Fallback if strict 12:00 was not available
+  // Fallback if exact 12:00 was absent
   if (dailyForecasts.length < 3) {
-    for (const entry of forecastData.list) {
-      const entryDate = entry.dt_txt.split(" ")[0];
+    for (let i = 0; i < listItems.length; i++) {
+      const entry = listItems[i];
+      const dtTxt = entry.dt_txt || "";
+      const entryDate = dtTxt.split(" ")[0];
+
       if (entryDate !== todayStr && !processedDates.has(entryDate)) {
         dailyForecasts.push(entry);
         processedDates.add(entryDate);
       }
-      if (dailyForecasts.length === 3) break;
+
+      if (dailyForecasts.length === 3) {
+        break;
+      }
     }
   }
 
-  dailyForecasts.forEach((item) => {
+  for (let j = 0; j < dailyForecasts.length; j++) {
+    const item = dailyForecasts[j];
     const dateObj = new Date(item.dt * 1000);
     const dayName = dateObj.toLocaleDateString("en-US", { weekday: "short" });
     const formattedShortDate = dateObj.toLocaleDateString("en-US", { month: "short", day: "numeric" });
@@ -199,10 +263,10 @@ function renderForecast(forecastData) {
       <span class="forecast-condition">${desc}</span>
     `;
     forecastGridEl.appendChild(card);
-  });
+  }
 }
 
-// Utility Helpers
+// Utility Formatting and UI State
 function formatDate(date) {
   const options = { weekday: "long", month: "short", day: "numeric", year: "numeric" };
   return date.toLocaleDateString("en-US", options);
