@@ -17,6 +17,7 @@
   --accent-primary-hover: #4f46e5;
   --accent-badge: rgba(99, 102, 241, 0.15);
   --accent-badge-text: #818cf8;
+  --star-active: #fbbf24;
   
   --blob-1: rgba(99, 102, 241, 0.15);
   --blob-2: rgba(236, 72, 153, 0.1);
@@ -40,6 +41,7 @@
   --accent-primary-hover: #4338ca;
   --accent-badge: rgba(79, 70, 229, 0.1);
   --accent-badge-text: #4f46e5;
+  --star-active: #d97706;
   
   --blob-1: rgba(99, 102, 241, 0.12);
   --blob-2: rgba(236, 72, 153, 0.08);
@@ -104,7 +106,7 @@ body {
   z-index: 1;
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: 1.75rem;
 }
 
 /* Header */
@@ -254,6 +256,63 @@ body {
   height: 18px;
 }
 
+/* Favorites / Pinned Row */
+.favorites-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.favorites-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+}
+
+.favorites-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.favorite-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 9999px;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.825rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  backdrop-filter: var(--glass-blur);
+  transition: all 0.2s ease;
+}
+
+.favorite-chip:hover {
+  background: var(--bg-card-hover);
+  color: var(--text-primary);
+  border-color: var(--border-focus);
+}
+
+.chip-remove {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.9rem;
+  line-height: 1;
+  padding: 0 0.1rem;
+}
+
+.chip-remove:hover {
+  color: #f87171;
+}
+
 /* Card & Glass Styles */
 .card {
   background: var(--bg-card);
@@ -271,13 +330,51 @@ body {
   align-items: flex-start;
 }
 
+.city-title-wrapper {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+
 .city-name {
   font-size: 1.85rem;
   font-weight: 700;
   letter-spacing: -0.02em;
 }
 
+.btn-fav {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.2rem;
+  color: var(--text-muted);
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.btn-fav svg {
+  width: 22px;
+  height: 22px;
+}
+
+.btn-fav:hover {
+  transform: scale(1.15);
+  color: var(--star-active);
+}
+
+.btn-fav.active {
+  color: var(--star-active);
+}
+
+.btn-fav.active svg {
+  fill: var(--star-active);
+}
+
 .date-text {
+  width: 100%;
   color: var(--text-secondary);
   font-size: 0.875rem;
   margin-top: 0.25rem;
@@ -388,7 +485,6 @@ body {
   scroll-behavior: smooth;
 }
 
-/* Custom scrollbar for horizontal hourly list */
 .hourly-track::-webkit-scrollbar {
   height: 6px;
 }
