@@ -1,5 +1,5 @@
 import os
-from typing import Optional
+from typing import Optional, List, Dict, Any
 from fastapi import FastAPI, HTTPException, Query, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -16,14 +16,52 @@ raw_api_key = os.getenv("OPENWEATHER_API_KEY", "")
 API_KEY = raw_api_key.strip().strip('"').strip("'")
 BASE_URL = "https://api.openweathermap.org/data/2.5"
 
-app = FastAPI(title="Weather Dashboard API", version="1.1.0")
+app = FastAPI(title="Weather Dashboard API", version="1.2.0")
 
-# Initialize in-memory cache with 10 minutes (600 seconds) TTL
+# In-memory cache with 10 minutes TTL
 weather_cache = SimpleMemoryCache(default_ttl_seconds=600)
 
 # Ensure static folder exists and mount it
 os.makedirs("static", exist_ok=True)
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+
+def extract_hourly_forecast(forecast_data: Dict[str, Any], count: int = 8) -> List[Dict[str, Any]]:
+    """
+    Extracts the nearest future 3-hour forecast intervals (up to 24 hours).
+    """
+    if not forecast_data:
+        return []
+
+    forecast_items = forecast_data.get("list", [])
+    if not forecast_items:
+        return []
+
+    hourly_list = []
+    # Take first 8 slots (~24 hours: 8 x 3 hours)
+    for entry in forecast_items[:count]:
+        time_text = entry.get("dt_txt", "")
+        # Extract HH:MM from format 'YYYY-MM-DD HH:MM:SS'
+        formatted_hour = ""
+        if len(time_text) >= 16:
+            formatted_hour = time_text[11:16]
+
+        main_info = entry.get("main", {})
+        weather_arr = entry.get("weather", [])
+        weather_first = weather_arr[0] if weather_arr else {}
+
+        hourly_list.append({
+            "timestamp": entry.get("dt"),
+            "hour": formatted_hour,
+            "temp": round(main_info.get("temp", 0)),
+            "feels_like": round(main_info.get("feels_like", 0)),
+            "humidity": main_info.get("humidity", 0),
+            "pop": round(entry.get("pop", 0) * 100),  # Probability of precipitation percentage
+            "icon": weather_first.get("icon", "01d"),
+            "condition": weather_first.get("main", "")
+        })
+
+    return hourly_list
 
 
 @app.get("/")
@@ -51,20 +89,20 @@ async def get_weather(
             detail="Please provide either a city name or latitude/longitude coordinates."
         )
 
-    # Build unique cache key based on query parameters
+    # Build unique cache key
     if city:
         normalized_city = city.strip().lower()
         cache_key = f"city:{normalized_city}:{units}"
     else:
         cache_key = f"geo:{lat:.2f}:{lon:.2f}:{units}"
 
-    # Check in-memory cache first
+    # Check cache
     cached_payload = weather_cache.get(cache_key)
     if cached_payload is not None:
         response.headers["X-Cache"] = "HIT"
         return cached_payload
 
-    # Prepare upstream API query parameters
+    # Upstream query parameters
     weather_params = {
         "appid": API_KEY,
         "units": units
@@ -83,7 +121,6 @@ async def get_weather(
         forecast_params["lat"] = lat
         forecast_params["lon"] = lon
 
-    # Fetch data asynchronously from OpenWeatherMap
     async with httpx.AsyncClient(timeout=10.0) as client:
         try:
             current_resp = await client.get(f"{BASE_URL}/weather", params=weather_params)
@@ -105,18 +142,22 @@ async def get_weather(
 
             current_data = current_resp.json()
 
-            # Fetch 5-day / 3-hour forecast
+            # 5-day / 3-hour forecast
             forecast_resp = await client.get(f"{BASE_URL}/forecast", params=forecast_params)
             forecast_data = {}
             if forecast_resp.status_code == 200:
                 forecast_data = forecast_resp.json()
 
+            # Parse 24h hourly segments
+            hourly_data = extract_hourly_forecast(forecast_data, count=8)
+
             result_payload = {
                 "current": current_data,
-                "forecast": forecast_data
+                "forecast": forecast_data,
+                "hourly": hourly_data
             }
 
-            # Store result in cache
+            # Cache the compiled payload
             weather_cache.set(cache_key, result_payload)
             response.headers["X-Cache"] = "MISS"
 
