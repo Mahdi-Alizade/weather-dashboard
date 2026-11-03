@@ -470,6 +470,79 @@ body {
   color: var(--text-primary);
 }
 
+/* Air Quality Index (AQI) Card */
+.aqi-card {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.aqi-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.aqi-advisory {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-top: 0.25rem;
+  line-height: 1.4;
+}
+
+.aqi-badge-wrapper {
+  display: flex;
+  align-items: center;
+}
+
+.aqi-badge {
+  display: inline-block;
+  padding: 0.4rem 0.9rem;
+  border-radius: 9999px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid currentColor;
+}
+
+.aqi-components-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.85rem;
+  border-top: 1px solid var(--border-color);
+  padding-top: 1.25rem;
+}
+
+@media (min-width: 640px) {
+  .aqi-components-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.aqi-component-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  background: var(--bg-input);
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+}
+
+.aqi-comp-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.aqi-comp-value {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
 /* Hourly Forecast Section */
 .hourly-section {
   display: flex;
