@@ -1,6 +1,7 @@
-// State Management
+// Local Storage Keys
 const STORAGE_KEY_THEME = "weatherpulse_theme";
 const STORAGE_KEY_LAST_CITY = "weatherpulse_last_city";
+const STORAGE_KEY_FAVORITES = "weatherpulse_favorites";
 
 // DOM Elements
 const themeToggleBtn = document.getElementById("theme-toggle");
@@ -10,6 +11,11 @@ const geoBtn = document.getElementById("geo-btn");
 const errorMessage = document.getElementById("error-message");
 const loadingSpinner = document.getElementById("loading-spinner");
 const weatherContent = document.getElementById("weather-content");
+
+// Favorites Elements
+const favoritesSection = document.getElementById("favorites-section");
+const favoritesContainer = document.getElementById("favorites-container");
+const favoriteBtn = document.getElementById("favorite-btn");
 
 // Current Weather Elements
 const cityNameEl = document.getElementById("city-name");
@@ -27,9 +33,13 @@ const metricPressureEl = document.getElementById("metric-pressure");
 const hourlyTrackEl = document.getElementById("hourly-track");
 const forecastGridEl = document.getElementById("forecast-grid");
 
+// App State
+let currentLoadedCity = "";
+
 // Initialize Application
 document.addEventListener("DOMContentLoaded", () => {
   initTheme();
+  renderFavoritesList();
   setupEventListeners();
 
   const savedCity = localStorage.getItem(STORAGE_KEY_LAST_CITY) || "London";
@@ -49,9 +59,117 @@ function toggleTheme() {
   localStorage.setItem(STORAGE_KEY_THEME, newTheme);
 }
 
+// Favorites Storage Operations
+function getStoredFavorites() {
+  const rawData = localStorage.getItem(STORAGE_KEY_FAVORITES);
+  if (!rawData) {
+    return [];
+  }
+  try {
+    const parsed = JSON.parse(rawData);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (err) {
+    return [];
+  }
+}
+
+function saveFavorites(favoritesArray) {
+  const jsonString = JSON.stringify(favoritesArray);
+  localStorage.setItem(STORAGE_KEY_FAVORITES, jsonString);
+}
+
+function isCityFavorited(cityName) {
+  if (!cityName) return false;
+  const list = getStoredFavorites();
+  const normalizedTarget = cityName.trim().toLowerCase();
+  for (let i = 0; i < list.length; i++) {
+    if (list[i].toLowerCase() === normalizedTarget) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function toggleFavoriteCity() {
+  if (!currentLoadedCity) return;
+
+  const currentList = getStoredFavorites();
+  const normalizedTarget = currentLoadedCity.trim().toLowerCase();
+  const existingIndex = currentList.findIndex(
+    (item) => item.toLowerCase() === normalizedTarget
+  );
+
+  if (existingIndex > -1) {
+    // Remove from favorites
+    currentList.splice(existingIndex, 1);
+    favoriteBtn.classList.remove("active");
+  } else {
+    // Add to favorites (keep maximum 6 pinned cities)
+    if (currentList.length >= 6) {
+      currentList.shift();
+    }
+    currentList.push(currentLoadedCity);
+    favoriteBtn.classList.add("active");
+  }
+
+  saveFavorites(currentList);
+  renderFavoritesList();
+}
+
+function renderFavoritesList() {
+  const favorites = getStoredFavorites();
+  favoritesContainer.innerHTML = "";
+
+  if (favorites.length === 0) {
+    favoritesSection.classList.add("hidden");
+    return;
+  }
+
+  favoritesSection.classList.remove("hidden");
+
+  for (let i = 0; i < favorites.length; i++) {
+    const city = favorites[i];
+    const chip = document.createElement("div");
+    chip.className = "favorite-chip";
+
+    const label = document.createElement("span");
+    label.textContent = city;
+    label.addEventListener("click", () => {
+      fetchWeatherData({ city: city });
+    });
+
+    const removeBtn = document.createElement("button");
+    removeBtn.className = "chip-remove";
+    removeBtn.innerHTML = "&times;";
+    removeBtn.title = `Remove ${city}`;
+    removeBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      removeFavoriteCity(city);
+    });
+
+    chip.appendChild(label);
+    chip.appendChild(removeBtn);
+    favoritesContainer.appendChild(chip);
+  }
+}
+
+function removeFavoriteCity(cityName) {
+  const list = getStoredFavorites();
+  const filtered = list.filter(
+    (item) => item.toLowerCase() !== cityName.trim().toLowerCase()
+  );
+  saveFavorites(filtered);
+  renderFavoritesList();
+
+  if (currentLoadedCity.toLowerCase() === cityName.trim().toLowerCase()) {
+    favoriteBtn.classList.remove("active");
+  }
+}
+
 // Event Listeners Setup
 function setupEventListeners() {
   themeToggleBtn.addEventListener("click", toggleTheme);
+  favoriteBtn.addEventListener("click", toggleFavoriteCity);
 
   searchForm.addEventListener("submit", (e) => {
     e.preventDefault();
@@ -126,10 +244,20 @@ function renderWeather(data) {
     return;
   }
 
+  // Update State
+  currentLoadedCity = current.name || "";
+
   // Populate Current Weather Card
   const countryCode = current.sys && current.sys.country ? current.sys.country : "";
   cityNameEl.textContent = `${current.name}, ${countryCode}`;
   currentDateEl.textContent = formatDate(new Date());
+
+  // Update Favorite Star Status
+  if (isCityFavorited(current.name)) {
+    favoriteBtn.classList.add("active");
+  } else {
+    favoriteBtn.classList.remove("active");
+  }
 
   const weatherArray = current.weather || [];
   const primaryWeather = weatherArray[0] || {};
