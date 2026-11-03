@@ -56,6 +56,14 @@
       </button>
     </section>
 
+    <!-- Pinned / Favorite Cities Row -->
+    <section id="favorites-section" class="favorites-section hidden">
+      <div class="favorites-label">Pinned Cities:</div>
+      <div id="favorites-container" class="favorites-container">
+        <!-- Injected via JS -->
+      </div>
+    </section>
+
     <!-- Feedback Message / Alert -->
     <div id="error-message" class="error-message hidden" role="alert"></div>
 
@@ -70,8 +78,13 @@
       <!-- Current Weather Hero Card -->
       <div class="card current-weather-card">
         <div class="current-header">
-          <div>
+          <div class="city-title-wrapper">
             <h1 id="city-name" class="city-name">--</h1>
+            <button id="favorite-btn" class="btn-fav" aria-label="Pin city to favorites" title="Pin city">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+              </svg>
+            </button>
             <p id="current-date" class="date-text">--</p>
           </div>
           <span id="weather-badge" class="weather-badge">--</span>
