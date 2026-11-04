@@ -161,6 +161,50 @@ body {
   letter-spacing: -0.02em;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+/* Unit Toggle Switcher */
+.btn-unit-toggle {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  height: 42px;
+  padding: 0 0.85rem;
+  border-radius: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  backdrop-filter: var(--glass-blur);
+  transition: all 0.2s ease;
+}
+
+.btn-unit-toggle:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--border-focus);
+}
+
+.unit-opt {
+  transition: color 0.2s ease;
+}
+
+.unit-opt.active {
+  color: var(--accent-badge-text);
+  font-weight: 700;
+}
+
+.unit-divider {
+  color: var(--border-color);
+  font-weight: 400;
+}
+
 .btn-icon {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
@@ -585,7 +629,6 @@ body {
   scroll-behavior: smooth;
 }
 
-/* Custom scrollbar for horizontal hourly list */
 .hourly-track::-webkit-scrollbar {
   height: 6px;
 }
