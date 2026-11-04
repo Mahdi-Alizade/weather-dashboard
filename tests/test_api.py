@@ -7,9 +7,10 @@ from main import app, weather_cache
 
 @pytest.fixture(autouse=True)
 def setup_test_environment(monkeypatch):
-    """Ensure in-memory cache is empty and mock API key is present."""
+    """Ensure in-memory cache is cleared and mock API key is injected."""
     weather_cache._storage.clear()
     monkeypatch.setattr(main, "API_KEY", "test_mock_api_key_1234567890")
+    monkeypatch.setenv("OPENWEATHER_API_KEY", "test_mock_api_key_1234567890")
     yield
     weather_cache._storage.clear()
 
@@ -83,7 +84,7 @@ async def test_cache_hit_and_miss_headers(monkeypatch):
         # First call: cache MISS
         first_resp = await client.get("/api/weather?city=Tehran")
         assert first_resp.status_code == 200, f"Expected 200 but got {first_resp.status_code}: {first_resp.text}"
-        assert first_resp.headers.get("x-cache") == "MISS" or first_resp.headers.get("X-Cache") == "MISS"
+        assert first_resp.headers.get("x-cache") == "MISS"
 
         first_data = first_resp.json()
         assert first_data["current"]["name"] == "Tehran"
@@ -92,4 +93,4 @@ async def test_cache_hit_and_miss_headers(monkeypatch):
         # Second call: cache HIT
         second_resp = await client.get("/api/weather?city=Tehran")
         assert second_resp.status_code == 200
-        assert second_resp.headers.get("x-cache") == "HIT" or second_resp.headers.get("X-Cache") == "HIT"
+        assert second_resp.headers.get("x-cache") == "HIT"
