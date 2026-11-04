@@ -2,9 +2,11 @@
 const STORAGE_KEY_THEME = "weatherpulse_theme";
 const STORAGE_KEY_LAST_CITY = "weatherpulse_last_city";
 const STORAGE_KEY_FAVORITES = "weatherpulse_favorites";
+const STORAGE_KEY_UNIT = "weatherpulse_temp_unit";
 
-// DOM Elements
+// DOM Elements - Navigation & Controls
 const themeToggleBtn = document.getElementById("theme-toggle");
+const unitToggleBtn = document.getElementById("unit-toggle");
 const searchForm = document.getElementById("search-form");
 const cityInput = document.getElementById("city-input");
 const geoBtn = document.getElementById("geo-btn");
@@ -22,6 +24,7 @@ const cityNameEl = document.getElementById("city-name");
 const currentDateEl = document.getElementById("current-date");
 const weatherBadgeEl = document.getElementById("weather-badge");
 const currentTempEl = document.getElementById("current-temp");
+const currentTempUnitEl = document.getElementById("current-temp-unit");
 const currentIconEl = document.getElementById("current-icon");
 const currentConditionEl = document.getElementById("current-condition");
 const metricFeelsEl = document.getElementById("metric-feels");
@@ -44,10 +47,13 @@ const forecastGridEl = document.getElementById("forecast-grid");
 
 // App State
 let currentLoadedCity = "";
+let currentWeatherData = null;
+let currentUnit = "metric"; // 'metric' for Celsius, 'imperial' for Fahrenheit
 
 // Initialize Application
 document.addEventListener("DOMContentLoaded", () => {
   initTheme();
+  initUnit();
   renderFavoritesList();
   setupEventListeners();
 
@@ -62,10 +68,60 @@ function initTheme() {
 }
 
 function toggleTheme() {
-  const currentTheme = document.documentElement.getAttribute("data-theme");
-  const newTheme = currentTheme === "dark" ? "light" : "dark";
+  const activeTheme = document.documentElement.getAttribute("data-theme");
+  const newTheme = activeTheme === "dark" ? "light" : "dark";
   document.documentElement.setAttribute("data-theme", newTheme);
   localStorage.setItem(STORAGE_KEY_THEME, newTheme);
+}
+
+// Unit Management & Conversion
+function initUnit() {
+  const savedUnit = localStorage.getItem(STORAGE_KEY_UNIT) || "metric";
+  currentUnit = savedUnit;
+  updateUnitToggleUI();
+}
+
+function toggleUnit() {
+  if (currentUnit === "metric") {
+    currentUnit = "imperial";
+  } else {
+    currentUnit = "metric";
+  }
+  localStorage.setItem(STORAGE_KEY_UNIT, currentUnit);
+  updateUnitToggleUI();
+
+  // Re-render cached dataset with new temperature unit
+  if (currentWeatherData) {
+    renderWeather(currentWeatherData);
+  }
+}
+
+function updateUnitToggleUI() {
+  const unitOptions = unitToggleBtn.querySelectorAll(".unit-opt");
+  for (let i = 0; i < unitOptions.length; i++) {
+    const opt = unitOptions[i];
+    const targetUnit = opt.getAttribute("data-unit");
+    if (targetUnit === currentUnit) {
+      opt.classList.add("active");
+    } else {
+      opt.classList.remove("active");
+    }
+  }
+}
+
+function convertTemp(tempCelsius) {
+  if (tempCelsius === null || tempCelsius === undefined) {
+    return "--";
+  }
+  if (currentUnit === "imperial") {
+    const fahrenheit = (tempCelsius * 9) / 5 + 32;
+    return Math.round(fahrenheit);
+  }
+  return Math.round(tempCelsius);
+}
+
+function getUnitSymbol() {
+  return currentUnit === "imperial" ? "°F" : "°C";
 }
 
 // Dynamic Weather Atmosphere Themes
@@ -209,6 +265,7 @@ function removeFavoriteCity(cityName) {
 // Event Listeners Setup
 function setupEventListeners() {
   themeToggleBtn.addEventListener("click", toggleTheme);
+  unitToggleBtn.addEventListener("click", toggleUnit);
   favoriteBtn.addEventListener("click", toggleFavoriteCity);
 
   searchForm.addEventListener("submit", (e) => {
@@ -250,7 +307,9 @@ async function fetchWeatherData(params) {
   hideError();
 
   try {
-    const query = new URLSearchParams(params).toString();
+    // We fetch in metric units as baseline and perform seamless conversion locally
+    const queryParams = { ...params, units: "metric" };
+    const query = new URLSearchParams(queryParams).toString();
     const response = await fetch(`/api/weather?${query}`);
     const data = await response.json();
 
@@ -259,6 +318,8 @@ async function fetchWeatherData(params) {
       throw new Error(serverError);
     }
 
+    // Cache the baseline data in client memory
+    currentWeatherData = data;
     renderWeather(data);
 
     if (params.city) {
@@ -308,16 +369,19 @@ function renderWeather(data) {
   // Apply Atmospheric Dynamic Glow Theme
   applyWeatherAtmosphere(mainCondition);
 
-  const currentTemp = Math.round(current.main.temp);
+  // Temperature and Unit conversions
+  const unitSymbol = getUnitSymbol();
+  const currentTemp = convertTemp(current.main.temp);
   currentTempEl.textContent = currentTemp;
+  currentTempUnitEl.textContent = unitSymbol;
   currentConditionEl.textContent = primaryWeather.description || "";
 
   const iconCode = primaryWeather.icon || "01d";
   currentIconEl.src = `https://openweathermap.org/img/wn/${iconCode}@2x.png`;
   currentIconEl.alt = mainCondition;
 
-  const feelsLikeTemp = Math.round(current.main.feels_like);
-  metricFeelsEl.textContent = `${feelsLikeTemp}°C`;
+  const feelsLikeTemp = convertTemp(current.main.feels_like);
+  metricFeelsEl.textContent = `${feelsLikeTemp}${unitSymbol}`;
   metricHumidityEl.textContent = `${current.main.humidity}%`;
 
   const windSpeedKmH = Math.round((current.wind?.speed || 0) * 3.6);
@@ -365,10 +429,12 @@ function renderHourlyForecast(hourlyList) {
     return;
   }
 
+  const unitSymbol = getUnitSymbol();
+
   for (let i = 0; i < hourlyList.length; i++) {
     const item = hourlyList[i];
     const timeLabel = item.hour || "--:--";
-    const tempValue = item.temp;
+    const tempValue = convertTemp(item.temp);
     const iconCode = item.icon || "01d";
     const conditionText = item.condition || "";
     const popPercent = item.pop || 0;
@@ -384,7 +450,7 @@ function renderHourlyForecast(hourlyList) {
     card.innerHTML = `
       <span class="hourly-time">${timeLabel}</span>
       <img src="https://openweathermap.org/img/wn/${iconCode}.png" alt="${conditionText}" />
-      <span class="hourly-temp">${tempValue}°C</span>
+      <span class="hourly-temp">${tempValue}${unitSymbol}</span>
       ${popHtml}
     `;
 
@@ -442,6 +508,8 @@ function renderForecast(forecastData) {
     }
   }
 
+  const unitSymbol = getUnitSymbol();
+
   for (let j = 0; j < dailyForecasts.length; j++) {
     const item = dailyForecasts[j];
     const dateObj = new Date(item.dt * 1000);
@@ -449,7 +517,7 @@ function renderForecast(forecastData) {
     const formattedShortDate = dateObj.toLocaleDateString("en-US", { month: "short", day: "numeric" });
     const icon = item.weather?.[0]?.icon || "01d";
     const desc = item.weather?.[0]?.description || "";
-    const temp = Math.round(item.main.temp);
+    const temp = convertTemp(item.main.temp);
 
     const card = document.createElement("div");
     card.className = "forecast-card";
@@ -457,7 +525,7 @@ function renderForecast(forecastData) {
       <span class="forecast-day">${dayName}</span>
       <span class="forecast-date">${formattedShortDate}</span>
       <img src="https://openweathermap.org/img/wn/${icon}.png" alt="${desc}" />
-      <span class="forecast-temp">${temp}°C</span>
+      <span class="forecast-temp">${temp}${unitSymbol}</span>
       <span class="forecast-condition">${desc}</span>
     `;
     forecastGridEl.appendChild(card);
