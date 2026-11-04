@@ -26,6 +26,14 @@
       </div>
 
       <div class="header-actions">
+        <!-- Unit Toggle Button -->
+        <button id="unit-toggle" class="btn-unit-toggle" aria-label="Toggle Temperature Unit">
+          <span class="unit-opt active" data-unit="metric">°C</span>
+          <span class="unit-divider">/</span>
+          <span class="unit-opt" data-unit="imperial">°F</span>
+        </button>
+
+        <!-- Theme Toggle Button -->
         <button id="theme-toggle" class="btn-icon" aria-label="Toggle Theme">
           <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="4"></circle>
@@ -93,7 +101,7 @@
         <div class="current-main">
           <div class="temp-wrapper">
             <span id="current-temp" class="temp-display">--</span>
-            <span class="temp-unit">°C</span>
+            <span id="current-temp-unit" class="temp-unit">°C</span>
           </div>
           <div class="weather-visual">
             <img id="current-icon" src="" alt="Weather condition icon" />
