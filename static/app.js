@@ -68,6 +68,37 @@ function toggleTheme() {
   localStorage.setItem(STORAGE_KEY_THEME, newTheme);
 }
 
+// Dynamic Weather Atmosphere Themes
+function applyWeatherAtmosphere(conditionMain) {
+  const atmosphereClasses = [
+    "weather-clear",
+    "weather-clouds",
+    "weather-rain",
+    "weather-snow",
+    "weather-thunderstorm"
+  ];
+
+  for (let i = 0; i < atmosphereClasses.length; i++) {
+    document.body.classList.remove(atmosphereClasses[i]);
+  }
+
+  if (!conditionMain) return;
+
+  const normalized = conditionMain.trim().toLowerCase();
+
+  if (normalized.includes("clear")) {
+    document.body.classList.add("weather-clear");
+  } else if (normalized.includes("cloud")) {
+    document.body.classList.add("weather-clouds");
+  } else if (normalized.includes("rain") || normalized.includes("drizzle")) {
+    document.body.classList.add("weather-rain");
+  } else if (normalized.includes("snow")) {
+    document.body.classList.add("weather-snow");
+  } else if (normalized.includes("thunder") || normalized.includes("storm")) {
+    document.body.classList.add("weather-thunderstorm");
+  }
+}
+
 // Favorites Storage Operations
 function getStoredFavorites() {
   const rawData = localStorage.getItem(STORAGE_KEY_FAVORITES);
@@ -273,6 +304,9 @@ function renderWeather(data) {
   const primaryWeather = weatherArray[0] || {};
   const mainCondition = primaryWeather.main || "Clear";
   weatherBadgeEl.textContent = mainCondition;
+
+  // Apply Atmospheric Dynamic Glow Theme
+  applyWeatherAtmosphere(mainCondition);
 
   const currentTemp = Math.round(current.main.temp);
   currentTempEl.textContent = currentTemp;
