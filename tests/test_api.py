@@ -1,4 +1,3 @@
-import json
 import pytest
 import httpx
 from httpx import AsyncClient, ASGITransport
@@ -49,7 +48,7 @@ async def test_cache_hit_and_miss_headers(monkeypatch):
                 "main": {"temp": 22.0, "feels_like": 21.5, "humidity": 30, "pressure": 1015},
                 "wind": {"speed": 3.2}
             }
-            return httpx.Response(status_code=200, json=mock_data)
+            return httpx.Response(status_code=200, json=mock_data, request=request)
 
         elif "/forecast" in url_str:
             mock_data = {
@@ -63,7 +62,7 @@ async def test_cache_hit_and_miss_headers(monkeypatch):
                     }
                 ]
             }
-            return httpx.Response(status_code=200, json=mock_data)
+            return httpx.Response(status_code=200, json=mock_data, request=request)
 
         elif "/air_pollution" in url_str:
             mock_data = {
@@ -74,20 +73,17 @@ async def test_cache_hit_and_miss_headers(monkeypatch):
                     }
                 ]
             }
-            return httpx.Response(status_code=200, json=mock_data)
+            return httpx.Response(status_code=200, json=mock_data, request=request)
 
-        return httpx.Response(status_code=404, json={"message": "Not found"})
+        return httpx.Response(status_code=404, json={"message": "Not found"}, request=request)
 
-    # Create mock transport for outbound HTTP calls inside main.py
     mock_transport = httpx.MockTransport(handle_mock_request)
-    original_async_client_init = httpx.AsyncClient.__init__
 
-    def mock_init(self, *args, **kwargs):
-        # Override transport with our mock handler
-        kwargs["transport"] = mock_transport
-        original_async_client_init(self, *args, **kwargs)
+    # Patch client.send directly to intercept requests under AsyncClient context managers
+    async def mock_send(self, request, *args, **kwargs):
+        return await mock_transport.handle_async_request(request)
 
-    monkeypatch.setattr(httpx.AsyncClient, "__init__", mock_init)
+    monkeypatch.setattr(httpx.AsyncClient, "send", mock_send)
 
     test_transport = ASGITransport(app=app)
     async with AsyncClient(transport=test_transport, base_url="http://test") as test_client:
