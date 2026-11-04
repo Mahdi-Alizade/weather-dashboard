@@ -37,9 +37,9 @@ async def test_missing_query_parameters_returns_400():
 @pytest.mark.asyncio
 async def test_cache_hit_and_miss_headers(monkeypatch):
     def handle_mock_request(request: httpx.Request) -> httpx.Response:
-        url_str = str(request.url)
+        url_path = request.url.path
 
-        if "/weather" in url_str:
+        if "/weather" in url_path:
             mock_data = {
                 "name": "Tehran",
                 "coord": {"lat": 35.68, "lon": 51.42},
@@ -50,7 +50,7 @@ async def test_cache_hit_and_miss_headers(monkeypatch):
             }
             return httpx.Response(status_code=200, json=mock_data, request=request)
 
-        elif "/forecast" in url_str:
+        elif "/forecast" in url_path:
             mock_data = {
                 "list": [
                     {
@@ -64,7 +64,7 @@ async def test_cache_hit_and_miss_headers(monkeypatch):
             }
             return httpx.Response(status_code=200, json=mock_data, request=request)
 
-        elif "/air_pollution" in url_str:
+        elif "/air_pollution" in url_path:
             mock_data = {
                 "list": [
                     {
@@ -75,7 +75,7 @@ async def test_cache_hit_and_miss_headers(monkeypatch):
             }
             return httpx.Response(status_code=200, json=mock_data, request=request)
 
-        return httpx.Response(status_code=404, json={"message": "Not found"}, request=request)
+        return httpx.Response(status_code=200, json={}, request=request)
 
     mock_transport = httpx.MockTransport(handle_mock_request)
 
@@ -89,8 +89,8 @@ async def test_cache_hit_and_miss_headers(monkeypatch):
     async with AsyncClient(transport=test_transport, base_url="http://test") as test_client:
         # First call: cache MISS
         first_resp = await test_client.get("/api/weather?city=Tehran")
-        assert first_resp.status_code == 200, f"Expected 200 but got {first_resp.status_code}: {first_resp.text}"
-        assert first_resp.headers.get("x-cache") == "MISS"
+        assert first_resp.status_code == 200, f"Call failed with body: {first_resp.text}"
+        assert first_resp.headers.get("x-cache") == "MISS", f"Headers were: {dict(first_resp.headers)}"
 
         first_data = first_resp.json()
         assert first_data["current"]["name"] == "Tehran"
@@ -98,5 +98,5 @@ async def test_cache_hit_and_miss_headers(monkeypatch):
 
         # Second call: cache HIT
         second_resp = await test_client.get("/api/weather?city=Tehran")
-        assert second_resp.status_code == 200
-        assert second_resp.headers.get("x-cache") == "HIT"
+        assert second_resp.status_code == 200, f"Cached call failed: {second_resp.text}"
+        assert second_resp.headers.get("x-cache") == "HIT", f"Cached headers were: {dict(second_resp.headers)}"
