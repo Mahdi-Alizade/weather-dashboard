@@ -1,8 +1,8 @@
 import os
 from typing import Optional, List, Dict, Any
-from fastapi import FastAPI, HTTPException, Query, Response
+from fastapi import FastAPI, HTTPException, Query
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
 import httpx
 from dotenv import load_dotenv
 
@@ -108,13 +108,13 @@ async def serve_index():
 
 @app.get("/api/weather")
 async def get_weather(
-    response: Response,
     city: Optional[str] = Query(None, description="City name"),
     lat: Optional[float] = Query(None, description="Latitude"),
     lon: Optional[float] = Query(None, description="Longitude"),
     units: str = Query("metric", description="Temperature unit (metric/imperial)")
 ):
-    if not API_KEY or API_KEY == "your_openweather_api_key_here":
+    active_api_key = API_KEY or os.getenv("OPENWEATHER_API_KEY", "")
+    if not active_api_key or active_api_key == "your_openweather_api_key_here":
         raise HTTPException(
             status_code=500,
             detail="OpenWeather API key is not configured in .env file."
@@ -136,16 +136,15 @@ async def get_weather(
     # Check cache
     cached_payload = weather_cache.get(cache_key)
     if cached_payload is not None:
-        response.headers["X-Cache"] = "HIT"
-        return cached_payload
+        return JSONResponse(content=cached_payload, headers={"X-Cache": "HIT"})
 
     # Upstream query parameters
     weather_params = {
-        "appid": API_KEY,
+        "appid": active_api_key,
         "units": units
     }
     forecast_params = {
-        "appid": API_KEY,
+        "appid": active_api_key,
         "units": units
     }
 
@@ -196,7 +195,7 @@ async def get_weather(
                 pollution_params = {
                     "lat": resolved_lat,
                     "lon": resolved_lon,
-                    "appid": API_KEY
+                    "appid": active_api_key
                 }
                 poll_resp = await client.get(f"{BASE_URL}/air_pollution", params=pollution_params)
                 if poll_resp.status_code == 200:
@@ -214,9 +213,8 @@ async def get_weather(
 
             # Cache the compiled payload
             weather_cache.set(cache_key, result_payload)
-            response.headers["X-Cache"] = "MISS"
 
-            return result_payload
+            return JSONResponse(content=result_payload, headers={"X-Cache": "MISS"})
 
         except httpx.RequestError as exc:
             raise HTTPException(
