@@ -1,14 +1,15 @@
-import json
 import pytest
 import httpx
 from httpx import AsyncClient, ASGITransport
+import main
 from main import app, weather_cache
 
 
 @pytest.fixture(autouse=True)
-def clear_cache():
-    """Clear in-memory cache before every test execution."""
+def setup_test_environment(monkeypatch):
+    """Ensure in-memory cache is empty and mock API key is present."""
     weather_cache._storage.clear()
+    monkeypatch.setattr(main, "API_KEY", "test_mock_api_key_1234567890")
     yield
     weather_cache._storage.clear()
 
@@ -34,9 +35,9 @@ async def test_missing_query_parameters_returns_400():
 
 @pytest.mark.asyncio
 async def test_cache_hit_and_miss_headers(monkeypatch):
-    async def mock_get(self, url, params=None):
+    async def mock_client_get(self, url, *args, **kwargs):
         url_str = str(url)
-        
+
         if "/weather" in url_str:
             mock_data = {
                 "name": "Tehran",
@@ -75,21 +76,20 @@ async def test_cache_hit_and_miss_headers(monkeypatch):
 
         return httpx.Response(status_code=404, json={"message": "Not found"})
 
-    # Patch httpx.AsyncClient.get for all outbound requests
-    monkeypatch.setattr(httpx.AsyncClient, "get", mock_get)
+    monkeypatch.setattr(httpx.AsyncClient, "get", mock_client_get)
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # First call: cache MISS
         first_resp = await client.get("/api/weather?city=Tehran")
-        assert first_resp.status_code == 200
-        assert first_resp.headers.get("X-Cache") == "MISS"
-        
-        data = first_resp.json()
-        assert data["current"]["name"] == "Tehran"
-        assert data["air_quality"]["status"] == "Fair"
+        assert first_resp.status_code == 200, f"Expected 200 but got {first_resp.status_code}: {first_resp.text}"
+        assert first_resp.headers.get("x-cache") == "MISS" or first_resp.headers.get("X-Cache") == "MISS"
+
+        first_data = first_resp.json()
+        assert first_data["current"]["name"] == "Tehran"
+        assert first_data["air_quality"]["status"] == "Fair"
 
         # Second call: cache HIT
         second_resp = await client.get("/api/weather?city=Tehran")
         assert second_resp.status_code == 200
-        assert second_resp.headers.get("X-Cache") == "HIT"
+        assert second_resp.headers.get("x-cache") == "HIT" or second_resp.headers.get("X-Cache") == "HIT"
