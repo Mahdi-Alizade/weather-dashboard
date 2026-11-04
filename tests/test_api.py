@@ -1,3 +1,4 @@
+import json
 import pytest
 import httpx
 from httpx import AsyncClient, ASGITransport
@@ -9,8 +10,8 @@ from main import app, weather_cache
 def setup_test_environment(monkeypatch):
     """Ensure in-memory cache is cleared and mock API key is injected."""
     weather_cache._storage.clear()
-    monkeypatch.setattr(main, "API_KEY", "test_mock_api_key_1234567890")
-    monkeypatch.setenv("OPENWEATHER_API_KEY", "test_mock_api_key_1234567890")
+    monkeypatch.setattr(main, "API_KEY", "test_mock_valid_key_12345")
+    monkeypatch.setenv("OPENWEATHER_API_KEY", "test_mock_valid_key_12345")
     yield
     weather_cache._storage.clear()
 
@@ -36,8 +37,8 @@ async def test_missing_query_parameters_returns_400():
 
 @pytest.mark.asyncio
 async def test_cache_hit_and_miss_headers(monkeypatch):
-    async def mock_client_get(self, url, *args, **kwargs):
-        url_str = str(url)
+    def handle_mock_request(request: httpx.Request) -> httpx.Response:
+        url_str = str(request.url)
 
         if "/weather" in url_str:
             mock_data = {
@@ -77,12 +78,21 @@ async def test_cache_hit_and_miss_headers(monkeypatch):
 
         return httpx.Response(status_code=404, json={"message": "Not found"})
 
-    monkeypatch.setattr(httpx.AsyncClient, "get", mock_client_get)
+    # Create mock transport for outbound HTTP calls inside main.py
+    mock_transport = httpx.MockTransport(handle_mock_request)
+    original_async_client_init = httpx.AsyncClient.__init__
 
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    def mock_init(self, *args, **kwargs):
+        # Override transport with our mock handler
+        kwargs["transport"] = mock_transport
+        original_async_client_init(self, *args, **kwargs)
+
+    monkeypatch.setattr(httpx.AsyncClient, "__init__", mock_init)
+
+    test_transport = ASGITransport(app=app)
+    async with AsyncClient(transport=test_transport, base_url="http://test") as test_client:
         # First call: cache MISS
-        first_resp = await client.get("/api/weather?city=Tehran")
+        first_resp = await test_client.get("/api/weather?city=Tehran")
         assert first_resp.status_code == 200, f"Expected 200 but got {first_resp.status_code}: {first_resp.text}"
         assert first_resp.headers.get("x-cache") == "MISS"
 
@@ -91,6 +101,6 @@ async def test_cache_hit_and_miss_headers(monkeypatch):
         assert first_data["air_quality"]["status"] == "Fair"
 
         # Second call: cache HIT
-        second_resp = await client.get("/api/weather?city=Tehran")
+        second_resp = await test_client.get("/api/weather?city=Tehran")
         assert second_resp.status_code == 200
         assert second_resp.headers.get("x-cache") == "HIT"
